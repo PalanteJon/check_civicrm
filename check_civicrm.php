@@ -21,6 +21,9 @@
  */
 
 $prot = ($argv[2] == 'https') ? 'https' : 'http';
+$api_key = $argv[5];
+$site_key = $argv[4];
+$host_address = $argv[1];
 
 switch (strtolower($argv[3])) {
   case 'joomla':
@@ -36,9 +39,12 @@ switch (strtolower($argv[3])) {
     $path = 'sites/all/modules/civicrm';
 }
 
-switch (strtolower($argv[6])) {
-  case 'system':
-    $result = file_get_contents("$prot://{$argv[1]}/$path/extern/rest.php?entity=system&action=check&key={$argv[4]}&api_key={$argv[5]}&json=1");
+echo "hi";
+systemCheck($prot, $host_address, $path, $site_key, $api_key);
+
+function systemCheck($prot, $host_address, $path, $site_key, $api_key) {
+  echo "hi2";
+    $result = file_get_contents("$prot://$host_address/$path/extern/rest.php?entity=system&action=check&key=$site_key&api_key=$api_key&json=1");
 
     $a = json_decode($result, true);
 
@@ -89,10 +95,5 @@ switch (strtolower($argv[6])) {
       exit($exit);
     }
     echo 'Unknown error';
-    exit(3);
-    break;
-
-  default:
-    echo 'No command given';
     exit(3);
 }
