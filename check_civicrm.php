@@ -9,21 +9,23 @@
  * Place in /usr/lib/nagios/plugins
  *
  * Call with the commands:
- * /usr/bin/php /usr/lib/nagios/plugins/check_civicrm.php $HOSTADDRESS$ $_HOSTHTTP$ $_HOSTCMS$ $_HOSTSITE_KEY$ $_HOSTAPI_KEY$ cron
- * and
- * /usr/bin/php /usr/lib/nagios/plugins/check_civicrm.php $HOSTADDRESS$ $_HOSTHTTP$ $_HOSTCMS$ $_HOSTSITE_KEY$ $_HOSTAPI_KEY$ version
+ * /usr/bin/php /usr/lib/nagios/plugins/check_civicrm.php $HOSTADDRESS$ $_HOSTHTTP$ $_HOSTCMS$ $_HOSTSITE_KEY$ $_HOSTAPI_KEY$ $SHOW_HIDDEN$ $WARNING_THRESHOLD$ $CRITICAL_THRESHOLD$
  *
  * in the host definition, provide the following custom variables:
  * _http      [http|https]
  * _cms       [drupal|joomla|wordpress]
  * _site_key  {your site key from settings.php}
  * _api_key   {an api key set on the civicrm_contact row corresponding to an admin user}
+ * _show_hidden |1|0|
  */
 
 $prot = ($argv[2] == 'https') ? 'https' : 'http';
 $api_key = $argv[5];
 $site_key = $argv[4];
 $host_address = $argv[1];
+$show_hidden = isset($argv[6]) ? $argv[6] : true;
+$warning_threshold = isset($argv[7]) ? $argv[7] : 2;
+$critical_threshold = isset($argv[8]) ? $argv[8] : 4;
 
 switch (strtolower($argv[3])) {
   case 'joomla':
@@ -39,21 +41,19 @@ switch (strtolower($argv[3])) {
     $path = 'sites/all/modules/civicrm';
 }
 
-echo "hi";
-systemCheck($prot, $host_address, $path, $site_key, $api_key);
+systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold);
 
-function systemCheck($prot, $host_address, $path, $site_key, $api_key) {
-  echo "hi2";
+function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold) {
     $result = file_get_contents("$prot://$host_address/$path/extern/rest.php?entity=system&action=check&key=$site_key&api_key=$api_key&json=1");
 
     $a = json_decode($result, true);
-
     if ($a["is_error"] != 1 && is_array($a['values'])) {
       $exit = 0;
 
       $message = array();
       foreach ($a["values"] as $attrib) {
 
+print_r($attrib);
         // first check for missing info
         $neededKeys = array(
           'title' => true,
@@ -72,17 +72,17 @@ function systemCheck($prot, $host_address, $path, $site_key, $api_key) {
         // future versions of CiviCRM are likely to send severity
         switch ($attrib['name']) {
           // warnings
-          case checkMysqlTime:
+          case 'checkMysqlTime':
             $exit = ($exit > 1) ? $exit : 1;
             break;
 
           // critical
-          case checkDebug:
-          case checkOutboundMail:
-          case checkLogFileIsNotAccessible:
-          case checkUploadsAreNotAccessible:
-          case checkDirectoriesAreNotBrowseable:
-          case checkFilesAreNotPresent:
+          case 'checkDebug':
+          case 'checkOutboundMail':
+          case 'checkLogFileIsNotAccessible':
+          case 'checkUploadsAreNotAccessible':
+          case 'checkDirectoriesAreNotBrowseable':
+          case 'checkFilesAreNotPresent':
             $exit = ($exit > 2) ? $exit : 2;
             break;
 
