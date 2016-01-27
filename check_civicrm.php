@@ -23,6 +23,7 @@ $prot = ($argv[2] == 'https') ? 'https' : 'http';
 $api_key = $argv[5];
 $site_key = $argv[4];
 $host_address = $argv[1];
+// $show_hidden will evaluate to true unless it's a zero.
 $show_hidden = isset($argv[6]) ? $argv[6] : true;
 $warning_threshold = isset($argv[7]) ? $argv[7] : 2;
 $critical_threshold = isset($argv[8]) ? $argv[8] : 4;
@@ -51,9 +52,10 @@ function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hid
       $exit = 0;
 
       $message = array();
+
+      $max_severity = 0;
       foreach ($a["values"] as $attrib) {
 
-print_r($attrib);
         // first check for missing info
         $neededKeys = array(
           'title' => true,
@@ -65,34 +67,29 @@ print_r($attrib);
           $exit = 3;
           continue;
         }
-
+        // Skip this item if it's hidden and we're hiding hidden items
+        if ($attrib['is_visible'] == 0 && !$show_hidden) {
+          continue;
+        }
+        // Skip this item if it doesn't meet the warning threshold
+        if ($attrib['severity_id'] < $warning_threshold) {
+          continue;
+        }
+print_r($attrib);
         $message[] = filter_var($attrib['title'], FILTER_SANITIZE_STRING) . ': ' . filter_var($attrib['message'], FILTER_SANITIZE_STRING);
 
         // temporarily setting this based upon message key
         // future versions of CiviCRM are likely to send severity
-        switch ($attrib['name']) {
-          // warnings
-          case 'checkMysqlTime':
-            $exit = ($exit > 1) ? $exit : 1;
-            break;
-
-          // critical
-          case 'checkDebug':
-          case 'checkOutboundMail':
-          case 'checkLogFileIsNotAccessible':
-          case 'checkUploadsAreNotAccessible':
-          case 'checkDirectoriesAreNotBrowseable':
-          case 'checkFilesAreNotPresent':
-            $exit = ($exit > 2) ? $exit : 2;
-            break;
-
-          // assuming all others are warning
-          default:
-            $exit = ($exit > 1) ? $exit : 1;
-        }
+        if ($attrib['severity_id'] >= $warning_threshold) {
+          $max_severity = max(1, $max_severity);
+        };
+        if ($attrib['severity_id'] >= $critical_threshold) {
+          $max_severity = max(2, $max_severity);
+        };
+        
       }
       echo implode(' / ', $message);
-      exit($exit);
+      exit($max_severity);
     }
     echo 'Unknown error';
     exit(3);
