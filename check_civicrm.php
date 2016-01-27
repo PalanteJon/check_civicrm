@@ -75,7 +75,6 @@ function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hid
         if ($attrib['severity_id'] < $warning_threshold) {
           continue;
         }
-print_r($attrib);
         $message[] = filter_var($attrib['title'], FILTER_SANITIZE_STRING) . ': ' . filter_var($attrib['message'], FILTER_SANITIZE_STRING);
 
         // temporarily setting this based upon message key
