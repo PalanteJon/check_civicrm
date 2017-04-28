@@ -46,7 +46,7 @@ switch (strtolower($argv[3])) {
 systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold);
 
 function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold) {
-    $result = file_get_contents("$prot://$host_address/$path/extern/rest.php?entity=system&action=check&key=$site_key&api_key=$api_key&json=1");
+    $result = file_get_contents("$prot://$host_address/$path/extern/rest.php?entity=system&action=check&key=$site_key&api_key=$api_key&json=1&version=3");
 
     $a = json_decode($result, true);
     if ($a["is_error"] != 1 && is_array($a['values'])) {
