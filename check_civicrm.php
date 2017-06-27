@@ -38,6 +38,10 @@ switch (strtolower($argv[3])) {
     $path ='wp-content/plugins/civicrm/civicrm';
     break;
 
+  case 'backdrop':
+    $path ='modules/civicrm';
+    break;
+
   case 'drupal':
   default:
     $path = 'sites/all/modules/civicrm';
