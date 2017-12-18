@@ -25,7 +25,7 @@ $api_key = $argv[5];
 $site_key = $argv[4];
 $host_address = $argv[1];
 // $show_hidden will evaluate to true unless it's a zero.
-$show_hidden = isset($argv[6]) ? $argv[6] : true;
+$show_hidden = isset($argv[6]) ? $argv[6] : TRUE;
 $warning_threshold = isset($argv[7]) ? $argv[7] : 2;
 $critical_threshold = isset($argv[8]) ? $argv[8] : 4;
 
@@ -35,11 +35,11 @@ switch (strtolower($argv[3])) {
     break;
 
   case 'wordpress':
-    $path ='wp-content/plugins/civicrm/civicrm';
+    $path = 'wp-content/plugins/civicrm/civicrm';
     break;
 
   case 'backdrop':
-    $path ='modules/civicrm';
+    $path = 'modules/civicrm';
     break;
 
   case 'drupal':
@@ -50,51 +50,59 @@ switch (strtolower($argv[3])) {
 systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold);
 
 function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold) {
-    $result = file_get_contents("$prot://$host_address/$path/extern/rest.php?entity=system&action=check&key=$site_key&api_key=$api_key&json=1&version=3");
+  $options = array(
+    'http' => array(
+      'header'  => "Content-type: application/x-www-form-urlencoded\r\nUser-Agent: CiviMonitor\r\n",
+      //'method'  => 'POST',
+      //'content' => http_build_query($request),
+    ),
+  );
+  $context  = stream_context_create($options);
+  $result = file_get_contents("$prot://$host_address/$path/extern/rest.php?entity=system&action=check&key=$site_key&api_key=$api_key&json=1&version=3", FALSE, $context);
 
-    $a = json_decode($result, true);
-    if ($a["is_error"] != 1 && is_array($a['values'])) {
-      $exit = 0;
+  $a = json_decode($result, TRUE);
+  if ($a["is_error"] != 1 && is_array($a['values'])) {
+    $exit = 0;
 
-      $message = array();
+    $message = array();
 
-      $max_severity = 0;
-      foreach ($a["values"] as $attrib) {
+    $max_severity = 0;
+    foreach ($a["values"] as $attrib) {
 
-        // first check for missing info
-        $neededKeys = array(
-          'title' => true,
-          'message' => true,
-          'name' => true,
-        );
-        if (array_intersect_key($neededKeys, $attrib) != $neededKeys) {
-          $message[] = 'Missing keys: ' . implode(', ', array_diff($neededKeys, array_intersect_key($neededKeys, $attrib))) . '.';
-          $exit = 3;
-          continue;
-        }
-        // Skip this item if it's hidden and we're hiding hidden items
-        if ($attrib['is_visible'] == 0 && !$show_hidden) {
-          continue;
-        }
-        // Skip this item if it doesn't meet the warning threshold
-        if ($attrib['severity_id'] < $warning_threshold) {
-          continue;
-        }
-        $message[] = filter_var($attrib['title'], FILTER_SANITIZE_STRING) . ': ' . filter_var($attrib['message'], FILTER_SANITIZE_STRING);
-
-        // temporarily setting this based upon message key
-        // future versions of CiviCRM are likely to send severity
-        if ($attrib['severity_id'] >= $warning_threshold) {
-          $max_severity = max(1, $max_severity);
-        };
-        if ($attrib['severity_id'] >= $critical_threshold) {
-          $max_severity = max(2, $max_severity);
-        };
-        
+      // first check for missing info
+      $neededKeys = array(
+        'title' => TRUE,
+        'message' => TRUE,
+        'name' => TRUE,
+      );
+      if (array_intersect_key($neededKeys, $attrib) != $neededKeys) {
+        $message[] = 'Missing keys: ' . implode(', ', array_diff($neededKeys, array_intersect_key($neededKeys, $attrib))) . '.';
+        $exit = 3;
+        continue;
       }
-      echo implode(' / ', $message);
-      exit($max_severity);
+      // Skip this item if it's hidden and we're hiding hidden items
+      if ($attrib['is_visible'] == 0 && !$show_hidden) {
+        continue;
+      }
+      // Skip this item if it doesn't meet the warning threshold
+      if ($attrib['severity_id'] < $warning_threshold) {
+        continue;
+      }
+      $message[] = filter_var($attrib['title'], FILTER_SANITIZE_STRING) . ': ' . filter_var($attrib['message'], FILTER_SANITIZE_STRING);
+
+      // temporarily setting this based upon message key
+      // future versions of CiviCRM are likely to send severity
+      if ($attrib['severity_id'] >= $warning_threshold) {
+        $max_severity = max(1, $max_severity);
+      };
+      if ($attrib['severity_id'] >= $critical_threshold) {
+        $max_severity = max(2, $max_severity);
+      };
+
     }
-    echo 'Unknown error';
-    exit(3);
+    echo implode(' / ', $message);
+    exit($max_severity);
+  }
+  echo 'Unknown error';
+  exit(3);
 }
