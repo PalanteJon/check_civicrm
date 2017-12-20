@@ -103,6 +103,10 @@ function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hid
     echo implode(' / ', $message);
     exit($max_severity);
   }
+  if ($a["is_error"] == 1) {
+    $message[] = $a['error_message'];
+    exit(2);
+  }
   echo 'Unknown error';
   exit(3);
 }
