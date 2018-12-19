@@ -104,7 +104,7 @@ function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hid
     exit($max_severity);
   }
   if ($a["is_error"] == 1) {
-    $message[] = $a['error_message'];
+    echo $a['error_message'];
     exit(2);
   }
   echo 'Unknown error';
