@@ -1,6 +1,9 @@
 # check_civicrm
 This is a Nagios/Icinga check for CiviCRM 4.7+.  Use it to monitor remote instances of CiviCRM over the REST API.
 
+### Compatibility
+The current version of this plugin supports the new WordPress REST interface, so it will not monitor WordPress sites earlier than CiviCRM version 5.18.0.  Download a version prior to August 2019 to support all versions of CiviCRM from 4.7 onward (including, for the foreseeable future, current versions of CiviCRM on WordPress).
+
 ### Usage
 This plugin takes a set of ordered arguments:
 ```

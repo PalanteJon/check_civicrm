@@ -14,7 +14,7 @@
  *
  * in the host definition, provide the following custom variables:
  * _http      [http|https]
- * _cms       [drupal|joomla|wordpress]
+ * _cms       [drupal|joomla|wordpress|backdrop]
  * _site_key  {your site key from settings.php}
  * _api_key   {an api key set on the civicrm_contact row corresponding to an admin user}
  * _show_hidden |1|0|
@@ -31,20 +31,24 @@ $critical_threshold = isset($argv[8]) ? $argv[8] : 4;
 
 switch (strtolower($argv[3])) {
   case 'joomla':
-    $path = 'administrator/components/com_civicrm/civicrm';
+    $path = 'administrator/components/com_civicrm/civicrm/extern/rest.php';
     break;
 
   case 'wordpress':
-    $path = 'wp-content/plugins/civicrm/civicrm';
+    $path = 'wp-json/civicrm/v3/rest';
     break;
 
   case 'backdrop':
-    $path = 'modules/civicrm';
+    $path = 'modules/civicrm/extern/rest.php';
+    break;
+
+  case 'drupal8':
+    $path = 'libraries/civicrm/extern/rest.php';
     break;
 
   case 'drupal':
   default:
-    $path = 'sites/all/modules/civicrm';
+    $path = 'sites/all/modules/civicrm/extern/rest.php';
 }
 
 systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold);
@@ -58,7 +62,7 @@ function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hid
     ),
   );
   $context  = stream_context_create($options);
-  $result = file_get_contents("$prot://$host_address/$path/extern/rest.php?entity=system&action=check&key=$site_key&api_key=$api_key&json=1&version=3", FALSE, $context);
+  $result = file_get_contents("$prot://$host_address/$path?entity=system&action=check&key=$site_key&api_key=$api_key&json=1&version=3", FALSE, $context);
 
   $a = json_decode($result, TRUE);
   if ($a["is_error"] != 1 && is_array($a['values'])) {
