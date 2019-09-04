@@ -46,19 +46,23 @@ $exclude = explode(',', $options['exclude'] ?? NULL);
 
 switch (strtolower($cms)) {
   case 'joomla':
-    $path = 'administrator/components/com_civicrm/civicrm';
+   $path = 'administrator/components/com_civicrm/civicrm/extern/rest.php';
     break;
 
   case 'wordpress':
-    $path = 'wp-content/plugins/civicrm/civicrm';
+    $path = 'wp-content/plugins/civicrm/civicrm/extern/rest.php';
+    //$path = 'wp-json/civicrm/v3/rest';
     break;
 
   case 'backdrop':
-    $path = 'modules/civicrm';
+    $path = 'modules/civicrm/extern/rest.php';
     break;
 
   case 'drupal':
-    $path = 'sites/all/modules/civicrm';
+    $path = 'sites/all/modules/civicrm/extern/rest.php';
+
+  case 'drupal8':
+    $path = 'libraries/civicrm/extern/rest.php';
 }
 if (!$path) {
   echo "You must specify either a valid CMS or a REST endpoint path.";
@@ -67,7 +71,7 @@ if (!$path) {
 systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold, $exclude);
 
 /**
- * Given an array of
+ * Given an array of command-line options, do some sanity checks, bail if missing required fields etc.
  * @param array $options
  */
 function checkRequired($options) {
@@ -83,6 +87,10 @@ function checkRequired($options) {
     echo "You are missing the following required arguments:$missing";
     exit(3);
   }
+  if (!in_array($options['protocol'], ['http', 'https'])) {
+    echo '"protocol" argument must be "http" or "https"' .
+    exit(3);
+  }
 }
 
 function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold, $exclude = []) {
@@ -94,7 +102,7 @@ function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hid
     ),
   );
   $context  = stream_context_create($options);
-  $result = file_get_contents("$prot://$host_address/$path/extern/rest.php?entity=system&action=check&key=$site_key&api_key=$api_key&json=1&version=3", FALSE, $context);
+  $result = file_get_contents("$prot://$host_address/$path?entity=system&action=check&key=$site_key&api_key=$api_key&json=1&version=3", FALSE, $context);
 
   $a = json_decode($result, TRUE);
   if ($a["is_error"] != 1 && is_array($a['values'])) {
