@@ -2,10 +2,27 @@
 This is a Nagios/Icinga check for CiviCRM 4.7+.  Use it to monitor remote instances of CiviCRM over the REST API.
 
 ### Usage
-This plugin takes a set of ordered arguments:
+
+Place in /usr/lib/nagios/plugins.
+Call with the command:
 ```
-check_civicrm.php hostname protocol cms site_key api_key
+/usr/bin/php /usr/lib/nagios/plugins/check_civicrm.php
 ```
+
+### Required arguments:
+ * --hostname `<hostname>`
+ * --protocol `<http|https>`
+ * --site-key `<your site key>`
+ * --api-key `<an API key>` must have system.check permission.  Use a key that has "Administer CiviCRM" permission, or better yet install https://github.com/MegaphoneJon/com.megaphonetech.monitoring
+ 
+ ###Optional arguments:
+ * --cms `<Drupal|Wordpress|Joomla|Backdrop|Drupal8>`
+ * --rest-path `<path to REST endpoint>` NOTE: either --cms OR --path is required
+ * --warning-threshold `<integer>` Checks that report back this severity_id or higher are considered Nagios/Icinga warnings.
+ * --critical-threshold `<integer>` Checks that report back this severity_id or higher are considered Nagios/Icinga errors.
+ * --show-hidden `<0|1>` If set to "0", checks that are hidden in the CiviCRM Status Console will be hidden from Nagios/Icinga.
+ * --exclusions `<comma-separated list of checks, no spaces>` Any checks listed here will be excluded.  E.g. `--exclude checkPhpVersion,checkLastCron` will suppress the PHP version check and the cron check
+
 
 e.g.:
 ```
@@ -28,12 +45,14 @@ object CheckCommand "civicrm" {
   command = [
     "/usr/bin/php",
     PluginDir + "/check_civicrm.php",
-    "$http_vhost$",
-    "$protocol$",
-    "$cms$",
-    "$crm_site_key$",
-    "$crm_api_key$",
-    0
+    "--exclude", "$exclude$",
+    "--hostname", "$http_vhost$",
+    "--protocol", "$protocol$",
+    "--cms", "$cms$",
+    "--site-key", "$crm_site_key$",
+    "--api-key", "$crm_api_key$",
+    "--show-hidden", 0,
+    "--rest-path", "$rest_path$"
   ]
 }
 ```
