@@ -60,9 +60,11 @@ switch (strtolower($cms)) {
 
   case 'drupal':
     $path = 'sites/all/modules/civicrm/extern/rest.php';
+    break;
 
   case 'drupal8':
     $path = 'libraries/civicrm/extern/rest.php';
+    break;
 }
 if (!$path) {
   echo "You must specify either a valid CMS or a REST endpoint path.";
