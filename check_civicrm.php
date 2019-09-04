@@ -20,6 +20,15 @@
  * _show_hidden |1|0|
  */
 
+// Version 2: Have named arguments in addition to ordered arguments.
+$shortopts = '';
+$longopts = ['exclude::'];
+$options = getopt($shortopts, $longopts);
+// For now, we avoid renumbering $argv[] by removing named arguments.
+// Later we can get $optind from getopt() as another transitional state.
+foreach ($options as $namedOption) {
+  array_shift($argv);
+}
 $prot = ($argv[2] == 'https') ? 'https' : 'http';
 $api_key = $argv[5];
 $site_key = $argv[4];
@@ -47,9 +56,9 @@ switch (strtolower($argv[3])) {
     $path = 'sites/all/modules/civicrm';
 }
 
-systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold);
+systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold, $options);
 
-function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold) {
+function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold, $cliOptions) {
   $options = array(
     'http' => array(
       'header'  => "Content-type: application/x-www-form-urlencoded\r\nUser-Agent: CiviMonitor\r\n",
@@ -62,12 +71,24 @@ function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hid
 
   $a = json_decode($result, TRUE);
   if ($a["is_error"] != 1 && is_array($a['values'])) {
+    // Get the exclusions.
+    $exclusions = [];
+    if (isset($cliOptions['exclude'])) {
+      $exclusions = explode(',', $cliOptions['exclude']) ?? [];
+    }
+
+    // Return status is "OK" untill we find out otherwise.
     $exit = 0;
 
-    $message = array();
+    $message = [];
 
     $max_severity = 0;
     foreach ($a["values"] as $attrib) {
+
+      // Remove excluded checks.
+      if (in_array($attrib['name'], $exclusions)) {
+        continue;
+      }
 
       // first check for missing info
       $neededKeys = array(
@@ -90,8 +111,6 @@ function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hid
       }
       $message[] = filter_var($attrib['title'], FILTER_SANITIZE_STRING) . ': ' . filter_var($attrib['message'], FILTER_SANITIZE_STRING);
 
-      // temporarily setting this based upon message key
-      // future versions of CiviCRM are likely to send severity
       if ($attrib['severity_id'] >= $warning_threshold) {
         $max_severity = max(1, $max_severity);
       };
