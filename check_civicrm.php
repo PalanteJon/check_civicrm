@@ -9,36 +9,42 @@
  *
  * Place in /usr/lib/nagios/plugins
  *
- * Call with the commands:
- * /usr/bin/php /usr/lib/nagios/plugins/check_civicrm.php $HOSTADDRESS$ $_HOSTHTTP$ $_HOSTCMS$ $_HOSTSITE_KEY$ $_HOSTAPI_KEY$ $SHOW_HIDDEN$ $WARNING_THRESHOLD$ $CRITICAL_THRESHOLD$
+ * Call with the command:
+ * /usr/bin/php /usr/lib/nagios/plugins/check_civicrm.php
  *
- * in the host definition, provide the following custom variables:
- * _http      [http|https]
- * _cms       [drupal|joomla|wordpress]
- * _site_key  {your site key from settings.php}
- * _api_key   {an api key set on the civicrm_contact row corresponding to an admin user}
- * _show_hidden |1|0|
+ * Required arguments:
+ * --hostname <hostname>
+ * --protocol <http|https>
+ * --site-key <your site key>
+ * --api-key <an API key> must have system.check permission.  Use a key that has "Administer CiviCRM" permission, or better yet install https://github.com/MegaphoneJon/com.megaphonetech.monitoring
+ *
+ * Optional arguments:
+ * --cms <Drupal|Wordpress|Joomla|Backdrop|Drupal8>
+ * --rest-path <path to REST endpoint> NOTE: either --cms OR --path is required
+ * --warning-threshold <integer> Checks that report back this severity_id or higher are considered Nagios/Icinga warnings.
+ * --critical-threshold <integer> Checks that report back this severity_id or higher are considered Nagios/Icinga errors.
+ * --show-hidden <0|1> If set to "0", checks that are hidden in the CiviCRM Status Console will be hidden from Nagios/Icinga.
+ * --exclusions <comma-separated list of checks, no spaces> Any checks listed here will be excluded.  E.g. --exclude checkPhpVersion,checkLastCron will suppress the PHP version check and the cron check
  */
-
-// Version 2: Have named arguments in addition to ordered arguments.
 $shortopts = '';
-$longopts = ['exclude::'];
+$longopts = ['exclude:', 'api-key:', 'site-key:', 'protocol:', 'cms:', 'rest-path:', 'show-hidden:', 'hostname:', 'warning-threshold', 'critical-threshold'];
 $options = getopt($shortopts, $longopts);
-// For now, we avoid renumbering $argv[] by removing named arguments.
-// Later we can get $optind from getopt() as another transitional state.
-foreach ($options as $namedOption) {
-  array_shift($argv);
-}
-$prot = ($argv[2] == 'https') ? 'https' : 'http';
-$api_key = $argv[5];
-$site_key = $argv[4];
-$host_address = $argv[1];
-// $show_hidden will evaluate to true unless it's a zero.
-$show_hidden = isset($argv[6]) ? $argv[6] : TRUE;
-$warning_threshold = isset($argv[7]) ? $argv[7] : 2;
-$critical_threshold = isset($argv[8]) ? $argv[8] : 4;
+checkRequired($options);
 
-switch (strtolower($argv[3])) {
+$prot = $options['protocol'];
+$api_key = $options['api-key'];
+$site_key = $options['site-key'];
+$host_address = $options['hostname'];
+// $show_hidden will evaluate to true unless it's a zero.
+$show_hidden = $options['show-hidden'] ?? TRUE;
+$warning_threshold = $options['warning-threshold'] ?? 2;
+$critical_threshold = $options['critical-threshold'] ?? 4;
+$path = $options['path'] ?? NULL;
+$cms = $options['cms'] ?? NULL;
+$exclude = explode(',', $options['exclude'] ?? NULL);
+
+
+switch (strtolower($cms)) {
   case 'joomla':
     $path = 'administrator/components/com_civicrm/civicrm';
     break;
@@ -52,13 +58,34 @@ switch (strtolower($argv[3])) {
     break;
 
   case 'drupal':
-  default:
     $path = 'sites/all/modules/civicrm';
 }
+if (!$path) {
+  echo "You must specify either a valid CMS or a REST endpoint path.";
+  exit(3);
+}
+systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold, $exclude);
 
-systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold, $options);
+/**
+ * Given an array of
+ * @param array $options
+ */
+function checkRequired($options) {
+  $requiredArguments = ['hostname', 'protocol', 'site-key', 'api-key'];
+  $arguments = array_keys($options);
+  $missing = NULL;
+  foreach ($requiredArguments as $required) {
+    if (!in_array($required, $arguments)) {
+      $missing .= " $required";
+    }
+  }
+  if (isset($missing)) {
+    echo "You are missing the following required arguments:$missing";
+    exit(3);
+  }
+}
 
-function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold, $cliOptions) {
+function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hidden, $warning_threshold, $critical_threshold, $exclude = []) {
   $options = array(
     'http' => array(
       'header'  => "Content-type: application/x-www-form-urlencoded\r\nUser-Agent: CiviMonitor\r\n",
@@ -71,12 +98,6 @@ function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hid
 
   $a = json_decode($result, TRUE);
   if ($a["is_error"] != 1 && is_array($a['values'])) {
-    // Get the exclusions.
-    $exclusions = [];
-    if (isset($cliOptions['exclude'])) {
-      $exclusions = explode(',', $cliOptions['exclude']) ?? [];
-    }
-
     // Return status is "OK" untill we find out otherwise.
     $exit = 0;
 
@@ -86,7 +107,7 @@ function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hid
     foreach ($a["values"] as $attrib) {
 
       // Remove excluded checks.
-      if (in_array($attrib['name'], $exclusions)) {
+      if (in_array($attrib['name'], $exclude)) {
         continue;
       }
 
