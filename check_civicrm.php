@@ -107,6 +107,13 @@ function systemCheck($prot, $host_address, $path, $site_key, $api_key, $show_hid
   $result = file_get_contents("$prot://$host_address/$path?entity=system&action=check&key=$site_key&api_key=$api_key&json=1&version=3", FALSE, $context);
 
   $a = json_decode($result, TRUE);
+  
+  if (is_null($a)) {
+    echo "Error decoding json:\n\n"; 
+    echo var_dump($result);
+    exit(3);    
+  }
+  
   if ($a["is_error"] != 1 && is_array($a['values'])) {
     // Return status is "OK" untill we find out otherwise.
     $exit = 0;
